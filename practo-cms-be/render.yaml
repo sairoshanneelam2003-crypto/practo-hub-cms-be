@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: practo-cms-backend
+    env: node
+    buildCommand: npm install && npm run build && npx prisma generate
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000

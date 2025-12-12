@@ -1,0 +1,405 @@
+// Practo Hub CMS - Complete Database Schema
+// Based on CURSOR_AI_IMPLEMENTATION_GUIDE.md
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  MEDICAL_REVIEWER
+  BRAND_REVIEWER
+  DOCTOR_CREATOR
+  AGENCY_POC
+  CONTENT_APPROVER
+  PUBLISHER
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum TopicStatus {
+  ASSIGNED
+  DOCTOR_INPUT_PENDING
+  DOCTOR_INPUT_RECEIVED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ScriptStatus {
+  DRAFT
+  MEDICAL_REVIEW
+  BRAND_REVIEW
+  DOCTOR_REVIEW
+  APPROVED // Doctor approved, waiting for Content Approver to lock
+  LOCKED
+  REJECTED
+}
+
+enum VideoStatus {
+  DRAFT
+  BRAND_REVIEW
+  MEDICAL_REVIEW
+  DOCTOR_REVIEW
+  APPROVED // Doctor approved, waiting for Content Approver to lock
+  LOCKED
+  PUBLISHED
+  ARCHIVED
+  REJECTED
+}
+
+enum ReviewDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  EMAIL
+  IN_APP
+}
+
+enum CTAType {
+  QUIZ
+  CONSULT
+  VAULT
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  password  String // bcrypt hashed
+  firstName String     @map("first_name")
+  lastName  String     @map("last_name")
+  role      UserRole
+  status    UserStatus @default(ACTIVE)
+
+  // Doctor-specific fields
+  specialty String?
+  city      String?
+
+  // OAuth
+  googleId String? @unique @map("google_id")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  // Relations
+  assignedTopics  Topic[]         @relation("AssignedTopics")
+  createdTopics   Topic[]         @relation("CreatedTopics")
+  doctorPointers  DoctorPointer[]
+  uploadedScripts Script[]        @relation("UploadedScripts")
+  lockedScripts   Script[]        @relation("LockedScripts")
+  assignedScripts Script[]        @relation("AssignedScriptReviewer")
+  scriptReviews   ScriptReview[]
+  uploadedVideos  Video[]         @relation("UploadedVideos")
+  lockedVideos    Video[]         @relation("LockedVideos")
+  publishedVideos Video[]         @relation("PublishedVideos")
+  assignedVideos  Video[]         @relation("AssignedVideoReviewer")
+  videoReviews    VideoReview[]
+  comments        Comment[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+model Topic {
+  id          String      @id @default(uuid())
+  title       String
+  description String      @db.Text
+  status      TopicStatus @default(ASSIGNED)
+
+  assignedDoctorId String @map("assigned_doctor_id")
+  assignedDoctor   User   @relation("AssignedTopics", fields: [assignedDoctorId], references: [id], onDelete: Restrict)
+
+  createdById String @map("created_by_id")
+  createdBy   User   @relation("CreatedTopics", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  doctorPointers DoctorPointer[]
+  scripts        Script[]
+  videos         Video[]
+
+  @@map("topics")
+}
+
+model DoctorPointer {
+  id      String @id @default(uuid())
+  topicId String @map("topic_id")
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  doctorId String @map("doctor_id")
+  doctor   User   @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+
+  notes    String? @db.Text
+  fileUrl  String? @map("file_url")
+  fileType String? @map("file_type")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("doctor_pointers")
+}
+
+model Script {
+  id      String @id @default(uuid())
+  topicId String @map("topic_id")
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  version Int          @default(1)
+  content String       @db.Text
+  status  ScriptStatus @default(DRAFT)
+
+  // AI-generated fields
+  summary            String?   @db.Text
+  tags               String[]
+  entities           Json?
+  qualityScore       Int?      @map("quality_score")
+  aiProcessedAt      DateTime? @map("ai_processed_at")
+  aiProcessingStatus String?   @map("ai_processing_status")
+
+  // Workflow tracking
+  uploadedById String? @map("uploaded_by_id")
+  uploadedBy   User?   @relation("UploadedScripts", fields: [uploadedById], references: [id])
+
+  lockedById String?   @map("locked_by_id")
+  lockedBy   User?     @relation("LockedScripts", fields: [lockedById], references: [id])
+  lockedAt   DateTime? @map("locked_at")
+
+  // Current reviewer assignment (for claim-based queue)
+  assignedReviewerId String?   @map("assigned_reviewer_id")
+  assignedReviewer   User?     @relation("AssignedScriptReviewer", fields: [assignedReviewerId], references: [id])
+  assignedAt         DateTime? @map("assigned_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  reviews  ScriptReview[]
+  comments Comment[]
+  videos   Video[]
+
+  @@unique([topicId, version])
+  @@index([assignedReviewerId])
+  @@map("scripts")
+}
+
+model ScriptReview {
+  id       String @id @default(uuid())
+  scriptId String @map("script_id")
+  script   Script @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+
+  reviewerId String @map("reviewer_id")
+  reviewer   User   @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  reviewerType UserRole       @map("reviewer_type")
+  decision     ReviewDecision @default(PENDING)
+  comments     String?        @db.Text
+
+  reviewedAt DateTime? @map("reviewed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("script_reviews")
+}
+
+model Video {
+  id      String @id @default(uuid())
+  topicId String @map("topic_id")
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  scriptId String? @map("script_id")
+  script   Script? @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String? @db.Text
+
+  // File URLs (S3)
+  videoUrl     String  @map("video_url")
+  thumbnailUrl String? @map("thumbnail_url")
+  duration     Int? // seconds
+  fileSize     BigInt? @map("file_size") // bytes
+
+  // Metadata (required for publishing)
+  doctorName String   @map("doctor_name")
+  specialty  String
+  language   String
+  city       String
+  ctaType    CTAType  @map("cta_type")
+  tags       String[]
+
+  // AI-generated fields
+  transcript         String?   @db.Text
+  transcriptUrl      String?   @map("transcript_url")
+  summary            String?   @db.Text
+  shortSummary       String?   @map("short_summary") @db.Text
+  keyTakeaways       String[]  @map("key_takeaways")
+  entities           Json?
+  qualityScore       Int?      @map("quality_score")
+  relatedVideoIds    String[]  @map("related_video_ids")
+  aiProcessedAt      DateTime? @map("ai_processed_at")
+  aiProcessingStatus String?   @map("ai_processing_status")
+
+  // Workflow state
+  status  VideoStatus @default(DRAFT)
+  version Int         @default(1)
+
+  uploadedById String? @map("uploaded_by_id")
+  uploadedBy   User?   @relation("UploadedVideos", fields: [uploadedById], references: [id])
+
+  lockedById String?   @map("locked_by_id")
+  lockedBy   User?     @relation("LockedVideos", fields: [lockedById], references: [id])
+  lockedAt   DateTime? @map("locked_at")
+
+  publishedById String?   @map("published_by_id")
+  publishedBy   User?     @relation("PublishedVideos", fields: [publishedById], references: [id])
+  publishedAt   DateTime? @map("published_at")
+
+  // Current reviewer assignment (for claim-based queue)
+  assignedReviewerId String?   @map("assigned_reviewer_id")
+  assignedReviewer   User?     @relation("AssignedVideoReviewer", fields: [assignedReviewerId], references: [id])
+  assignedAt         DateTime? @map("assigned_at")
+
+  deepLink String? @map("deep_link")
+
+  // Analytics
+  viewCount Int @default(0) @map("view_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  reviews   VideoReview[]
+  comments  Comment[]
+  analytics VideoAnalytics?
+
+  @@unique([topicId, version])
+  @@index([assignedReviewerId])
+  @@map("videos")
+}
+
+model VideoReview {
+  id      String @id @default(uuid())
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  reviewerId String @map("reviewer_id")
+  reviewer   User   @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  reviewerType UserRole       @map("reviewer_type")
+  decision     ReviewDecision @default(PENDING)
+  comments     String?        @db.Text
+
+  reviewedAt DateTime? @map("reviewed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("video_reviews")
+}
+
+model Comment {
+  id String @id @default(uuid())
+
+  // Polymorphic - one of these must be set
+  scriptId String? @map("script_id")
+  script   Script? @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+
+  videoId String? @map("video_id")
+  video   Video?  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  authorId String @map("author_id")
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  content String @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("comments")
+}
+
+model Notification {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    NotificationType @default(EMAIL)
+  title   String
+  message String           @db.Text
+
+  isRead Boolean   @default(false) @map("is_read")
+  readAt DateTime? @map("read_at")
+
+  metadata Json? // {videoId, action, etc.}
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  action     String // APPROVE_SCRIPT, REJECT_VIDEO, etc.
+  entityType String @map("entity_type") // TOPIC, SCRIPT, VIDEO
+  entityId   String @map("entity_id")
+
+  oldValue Json? @map("old_value")
+  newValue Json? @map("new_value")
+
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model VideoAnalytics {
+  id      String @id @default(uuid())
+  videoId String @unique @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  views        Int   @default(0)
+  uniqueViews  Int   @default(0) @map("unique_views")
+  avgWatchTime Float @default(0) @map("avg_watch_time")
+  ctr          Float @default(0)
+
+  quizStarted      Int @default(0) @map("quiz_started")
+  quizCompleted    Int @default(0) @map("quiz_completed")
+  consultClicked   Int @default(0) @map("consult_clicked")
+  consultCompleted Int @default(0) @map("consult_completed")
+
+  hookRate3s Float @default(0) @map("hook_rate_3s")
+  hookRate5s Float @default(0) @map("hook_rate_5s")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("video_analytics")
+}
