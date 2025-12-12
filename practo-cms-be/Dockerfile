@@ -1,8 +1,7 @@
-FROM node:18-alpine
+FROM node:18
 
-# Install OpenSSL and other required libraries for Prisma
-# Prisma requires OpenSSL 1.1.x for the query engine
-RUN apk add --no-cache openssl1.1-compat libc6-compat ca-certificates
+# Debian-based image has better Prisma compatibility
+# No need to install OpenSSL separately - it's already included
 
 WORKDIR /app
 
