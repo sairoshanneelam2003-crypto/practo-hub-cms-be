@@ -54,11 +54,43 @@
 ### 2. **Google OAuth Login**
 **POST** `/api/auth/oauth/google`
 
+**What is the token?**
+The `token` is the **Google ID Token** (JWT) that you get from Google Sign-In on the frontend. This is NOT your backend JWT token - it's the token Google gives you when a user signs in with Google.
+
+**How to get it:**
+1. User clicks "Sign in with Google" on your frontend
+2. Google Sign-In SDK returns an ID token
+3. Send that Google ID token to this endpoint
+4. Backend verifies it with Google and returns YOUR app's JWT token
+
 **Request Body:**
 ```json
 {
-  "token": "google_id_token_here"
+  "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1NiJ9..." // Google ID Token from Google Sign-In
 }
+```
+
+**Frontend Example (React with Google Sign-In):**
+```javascript
+// After user signs in with Google
+const response = await google.accounts.oauth2.initTokenClient({
+  client_id: 'YOUR_GOOGLE_CLIENT_ID',
+  callback: async (response) => {
+    // response.credential is the Google ID Token
+    const googleIdToken = response.credential;
+    
+    // Send to your backend
+    const loginResponse = await fetch('https://practo-cms-backend-8.onrender.com/api/auth/oauth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: googleIdToken })
+    });
+    
+    const data = await loginResponse.json();
+    // data.token is YOUR app's JWT token - store this!
+    localStorage.setItem('authToken', data.token);
+  }
+});
 ```
 
 **Success Response (200):**
@@ -229,6 +261,45 @@ Available roles in the system:
 - `CONTENT_APPROVER`
 - `PUBLISHER`
 - `VIEWER`
+
+---
+
+## 👤 User Data Structure
+
+### User Object (from API responses)
+
+```typescript
+interface User {
+  id: string;                    // UUID
+  email: string;                 // Unique email address
+  firstName: string;             // First name
+  lastName: string;              // Last name
+  name?: string;                // Computed: firstName + lastName (in some responses)
+  role: UserRole;                // One of the roles listed above
+  status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+  specialty?: string;            // Doctor's specialty (optional, for doctors)
+  city?: string;                // User's city (optional)
+  createdAt?: string;           // ISO date string (when account was created)
+  lastLoginAt?: string;         // ISO date string (last login timestamp)
+}
+```
+
+### User Status Values
+
+- `ACTIVE` - User can log in and use the system
+- `INACTIVE` - User account is disabled
+- `SUSPENDED` - User account is temporarily suspended
+
+### User Fields by Role
+
+**Doctor-specific fields:**
+- `specialty` - Medical specialty (e.g., "Cardiology", "Endocrinology")
+- `city` - Doctor's practice city
+
+**All users have:**
+- `id`, `email`, `firstName`, `lastName`, `role`, `status`
+
+**Note:** The `password` field is **never** returned in API responses for security reasons.
 
 ---
 
