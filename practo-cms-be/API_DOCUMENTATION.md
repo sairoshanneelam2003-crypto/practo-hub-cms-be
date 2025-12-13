@@ -366,6 +366,36 @@ curl https://practo-cms-backend-8.onrender.com/api/auth/me \
 
 ---
 
+## 🧪 Test Credentials
+
+**Note:** These test users need to be seeded in the database first. Contact backend team to run seed script if needed.
+
+**Default Password for all test users:** `Admin@123`
+
+### Available Test Users:
+
+| Role | Email | Use Case |
+|------|-------|----------|
+| Super Admin | `admin@practo.com` | Full system access |
+| Doctor Creator | `doctor@practo.com` | Create topics, scripts, videos |
+| Medical Reviewer | `medical.reviewer@practo.com` | Review medical content |
+| Brand Reviewer | `brand.reviewer@practo.com` | Review brand compliance |
+| Content Approver | `approver@practo.com` | Approve and lock content |
+| Publisher | `publisher@practo.com` | Publish videos |
+| Agency POC | `agency@practo.com` | Agency point of contact |
+| Viewer | `viewer@practo.com` | View-only access |
+
+### Quick Test Login:
+
+```bash
+# Test login with Doctor account
+curl -X POST https://practo-cms-backend-8.onrender.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"doctor@practo.com","password":"Admin@123"}'
+```
+
+---
+
 ## 📞 Support
 
 If you encounter any issues:
@@ -373,6 +403,7 @@ If you encounter any issues:
 2. Verify the token is being sent correctly
 3. Check browser console for CORS errors
 4. Verify the API URL is correct
+5. Ensure test users are seeded in the database
 
 ---
 
