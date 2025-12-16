@@ -57,7 +57,7 @@ router.get('/queue-stats', async (req, res) => {
       notificationQueue.getFailed()
     ]);
 
-    const [waiting, active, completed, failed] = await Promise.race([statsPromise, timeout]);
+    const [waiting, active, completed, failed] = await Promise.race([statsPromise, timeout]) as [any[], any[], any[], any[]];
 
     res.json({
       status: 'connected',
