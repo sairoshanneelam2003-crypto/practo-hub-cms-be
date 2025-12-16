@@ -20,6 +20,7 @@ import videoRoutes from "./modules/videos/videos.routes.js";
 import doctorPointerRoutes from "./modules/doctor-pointers/doctor-pointers.routes.js";
 import commentRoutes from "./modules/comments/comments.routes.js";
 import hubRoutes from "./modules/videos/hub.routes.js";
+import notificationRoutes from "./modules/notifications/notifications.routes.js";
 
 const app = express();
 
@@ -84,6 +85,9 @@ app.use("/api/doctor-pointers", doctorPointerRoutes);
 
 // Comment routes
 app.use("/api/comments", commentRoutes);
+
+// Notification routes
+app.use("/api/notifications", notificationRoutes);
 
 // Public Hub API (for mobile app)
 app.use("/api/v1/hub", hubRoutes);

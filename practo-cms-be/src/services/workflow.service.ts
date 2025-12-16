@@ -25,6 +25,7 @@ import {
   isValidScriptTransition,
   isValidVideoTransition
 } from '../config/constants.js';
+import NotificationService from '../modules/notifications/notifications.service.js';
 
 // ============================================================================
 // TYPES
@@ -138,6 +139,14 @@ export class WorkflowService {
         return updatedScript;
       });
       
+      // Trigger notification after successful transition (async, don't block)
+      if (result) {
+        const script = result;
+        this.triggerScriptNotification(action, scriptId, script.topicId, script.version || 1, nextState, context).catch(err => {
+          console.error('Failed to trigger script notification:', err);
+        });
+      }
+      
       return { success: true, data: result };
       
     } catch (error: any) {
@@ -206,6 +215,11 @@ export class WorkflowService {
         return updatedScript;
       });
       
+      // Trigger notification for script locked
+      this.triggerScriptNotification('LOCK', scriptId, result.topicId, result.version || 1, ScriptStatus.LOCKED, context).catch(err => {
+        console.error('Failed to trigger script lock notification:', err);
+      });
+      
       return { success: true, data: result };
       
     } catch (error: any) {
@@ -213,7 +227,7 @@ export class WorkflowService {
       return { success: false, error: error.message };
     }
   }
-
+  
   /**
    * Unlock a script (Super Admin only - emergency)
    */
@@ -386,6 +400,15 @@ export class WorkflowService {
         return updatedVideo;
       });
       
+      // Trigger notification after successful transition (async, don't block)
+      if (result) {
+        const video = result;
+        const deepLink = action === 'PUBLISH' ? `practo://hub/video/${videoId}` : undefined;
+        this.triggerVideoNotification(action, videoId, video.topicId, video.version || 1, nextState, context, deepLink).catch(err => {
+          console.error('Failed to trigger video notification:', err);
+        });
+      }
+      
       return { success: true, data: result };
       
     } catch (error: any) {
@@ -449,6 +472,11 @@ export class WorkflowService {
         });
         
         return updatedVideo;
+      });
+      
+      // Trigger notification for video locked
+      this.triggerVideoNotification('LOCK', videoId, result.topicId, result.version || 1, VideoStatus.LOCKED, context).catch(err => {
+        console.error('Failed to trigger video lock notification:', err);
       });
       
       return { success: true, data: result };
@@ -1067,6 +1095,148 @@ export class WorkflowService {
         myReviews, 
         total: available.length + myReviews.length 
       };
+    }
+  }
+
+  // ========================================================================
+  // NOTIFICATION TRIGGERS
+  // ========================================================================
+
+  /**
+   * Trigger script notification based on action and state
+   */
+  private static async triggerScriptNotification(
+    action: ScriptAction,
+    scriptId: string,
+    topicId: string,
+    version: number,
+    nextState: ScriptStatus,
+    context: TransitionContext
+  ): Promise<void> {
+    const { NotificationService } = await import('../modules/notifications/notifications.service.js');
+
+    try {
+      if (action === 'SUBMIT') {
+        await NotificationService.enqueueEvent({
+          eventType: 'SCRIPT_SUBMITTED',
+          entityId: scriptId,
+          entityType: 'SCRIPT',
+          topicId,
+          version,
+          actorUserId: context.userId,
+          actorRole: context.userRole,
+        });
+      } else if (action === 'APPROVE') {
+        await NotificationService.enqueueEvent({
+          eventType: 'SCRIPT_APPROVED',
+          entityId: scriptId,
+          entityType: 'SCRIPT',
+          topicId,
+          version,
+          actorUserId: context.userId,
+          actorRole: context.userRole,
+          nextStage: nextState,
+        });
+      } else if (action === 'REJECT') {
+        await NotificationService.enqueueEvent({
+          eventType: 'SCRIPT_REJECTED',
+          entityId: scriptId,
+          entityType: 'SCRIPT',
+          topicId,
+          version,
+          actorUserId: context.userId,
+          actorRole: context.userRole,
+          comments: context.comments || undefined,
+        });
+      } else if (action === 'LOCK') {
+        await NotificationService.enqueueEvent({
+          eventType: 'SCRIPT_LOCKED',
+          entityId: scriptId,
+          entityType: 'SCRIPT',
+          topicId,
+          version,
+          actorUserId: context.userId,
+          actorRole: context.userRole,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to trigger script notification:', error);
+      // Don't throw - notifications shouldn't break workflow
+    }
+  }
+
+  /**
+   * Trigger video notification based on action and state
+   */
+  private static async triggerVideoNotification(
+    action: VideoAction,
+    videoId: string,
+    topicId: string,
+    version: number,
+    nextState: VideoStatus,
+    context: TransitionContext,
+    deepLink?: string
+  ): Promise<void> {
+    const { NotificationService } = await import('../modules/notifications/notifications.service.js');
+
+    try {
+      if (action === 'SUBMIT') {
+        await NotificationService.enqueueEvent({
+          eventType: 'VIDEO_SUBMITTED',
+          entityId: videoId,
+          entityType: 'VIDEO',
+          topicId,
+          version,
+          actorUserId: context.userId,
+          actorRole: context.userRole,
+        });
+      } else if (action === 'APPROVE') {
+        await NotificationService.enqueueEvent({
+          eventType: 'VIDEO_APPROVED',
+          entityId: videoId,
+          entityType: 'VIDEO',
+          topicId,
+          version,
+          actorUserId: context.userId,
+          actorRole: context.userRole,
+          nextStage: nextState,
+        });
+      } else if (action === 'REJECT') {
+        await NotificationService.enqueueEvent({
+          eventType: 'VIDEO_REJECTED',
+          entityId: videoId,
+          entityType: 'VIDEO',
+          topicId,
+          version,
+          actorUserId: context.userId,
+          actorRole: context.userRole,
+          comments: context.comments || undefined,
+        });
+      } else if (action === 'LOCK') {
+        await NotificationService.enqueueEvent({
+          eventType: 'VIDEO_LOCKED',
+          entityId: videoId,
+          entityType: 'VIDEO',
+          topicId,
+          version,
+          actorUserId: context.userId,
+          actorRole: context.userRole,
+        });
+      } else if (action === 'PUBLISH') {
+        await NotificationService.enqueueEvent({
+          eventType: 'VIDEO_PUBLISHED',
+          entityId: videoId,
+          entityType: 'VIDEO',
+          topicId,
+          version,
+          actorUserId: context.userId,
+          actorRole: context.userRole,
+          deepLink: deepLink,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to trigger video notification:', error);
+      // Don't throw - notifications shouldn't break workflow
     }
   }
 }

@@ -7,7 +7,8 @@ This guide will help you deploy the Practo CMS Backend to Render.
 1. GitHub account with the repository pushed
 2. Render account (sign up at https://render.com)
 3. PostgreSQL database (can be created on Render)
-4. AWS S3 credentials (for file storage)
+4. Redis instance (for notification queue - can be created on Render)
+5. AWS S3 credentials (for file storage)
 
 ## Step 1: Create PostgreSQL Database on Render
 
@@ -22,7 +23,22 @@ This guide will help you deploy the Practo CMS Backend to Render.
 4. Click "Create Database"
 5. **Important**: Copy the **Internal Database URL** (you'll need this)
 
-## Step 2: Create Web Service on Render
+## Step 2: Create Redis Instance on Render
+
+1. In Render Dashboard, click "New +" → "Redis"
+2. Configure:
+   - **Name**: `practo-cms-redis` (or your preferred name)
+   - **Region**: Same as your database and web service
+   - **Plan**: Free tier (or paid for production)
+   - **Redis Version**: Latest (7.x recommended)
+3. Click "Create Redis"
+4. **Important**: Copy the **Internal Redis URL** (you'll need this)
+   - Format: `redis://red-xxxxx:6379` or `redis://default:password@red-xxxxx:6379`
+   - **Use Internal URL** (not External) for better performance and security
+
+**Note**: If you prefer external Redis (Upstash, Railway, etc.), you can use that too. Just get the connection URL.
+
+## Step 3: Create Web Service on Render
 
 1. In Render Dashboard, click "New +" → "Web Service"
 2. Connect your GitHub account if not already connected
@@ -103,14 +119,14 @@ Add the following environment variables in the Render dashboard:
 - **Auto-Deploy**: `Yes` (deploys automatically on git push)
 - **Health Check Path**: `/health`
 
-## Step 3: Deploy
+## Step 4: Deploy
 
 1. Click "Create Web Service"
 2. Render will start building your application
 3. Monitor the build logs for any errors
 4. Once deployed, you'll get a URL like: `https://practo-cms-backend.onrender.com`
 
-## Step 4: Verify Deployment
+## Step 5: Verify Deployment
 
 1. Check health endpoint: `https://your-app-url.onrender.com/health`
    - Should return: `{"status":"healthy"}`
@@ -118,7 +134,7 @@ Add the following environment variables in the Render dashboard:
 2. Check root endpoint: `https://your-app-url.onrender.com/`
    - Should return API information
 
-## Step 5: Run Database Migrations (if needed)
+## Step 6: Run Database Migrations (if needed)
 
 If migrations didn't run during build, you can run them manually:
 
@@ -152,6 +168,14 @@ If migrations didn't run during build, you can run them manually:
 - Check Prisma migrations are running: `npx prisma migrate deploy`
 - Verify Prisma client is generated: `npx prisma generate`
 
+### Redis Connection Issues
+
+- Verify `REDIS_URL` is set correctly
+- Use Internal Redis URL (not external) for better performance
+- Check Redis instance is running in Render dashboard
+- If using external Redis, verify connection string format
+- Check application logs for Redis connection errors
+
 ## Environment Variables Summary
 
 Copy this checklist when setting up:
@@ -167,6 +191,7 @@ Copy this checklist when setting up:
 - [ ] AWS_SECRET_ACCESS_KEY
 - [ ] S3_BUCKET_NAME
 - [ ] GOOGLE_CLIENT_ID
+- [ ] REDIS_URL (or REDIS_HOST + REDIS_PORT)
 
 ## API Endpoints
 
