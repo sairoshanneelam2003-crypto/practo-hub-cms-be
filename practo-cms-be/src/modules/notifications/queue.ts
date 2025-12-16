@@ -9,8 +9,10 @@ import Redis from 'ioredis';
 
 // Redis connection configuration
 const redisConfig: any = {
-  maxRetriesPerRequest: null,
+  maxRetriesPerRequest: 3, // Limit retries for production
   enableReadyCheck: false,
+  connectTimeout: 10000, // 10 seconds
+  lazyConnect: true,
 };
 
 // Support both REDIS_URL and individual config
