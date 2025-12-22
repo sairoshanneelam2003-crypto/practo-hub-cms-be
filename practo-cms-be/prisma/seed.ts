@@ -23,7 +23,8 @@ interface SeedUser {
 // Emails that should be updated on every seed run (useful for OAuth test accounts)
 const FORCE_UPDATE_EMAILS = new Set<string>([
   "roshan.neelam@gamyam.co",
-  "akshay.sharma@gamyam.co"
+  "akshay.sharma@gamyam.co",
+  "akash.kalakuntla@gamyam.co"
 ]);
 
 const seedUsers: SeedUser[] = [
@@ -39,6 +40,12 @@ const seedUsers: SeedUser[] = [
     email: "roshan.neelam@gamyam.co",
     firstName: "Roshan",
     lastName: "Neelam",
+    role: UserRole.SUPER_ADMIN
+  },
+   {
+    email: "akash.kalakuntla@gamyam.co",
+    firstName: "Akash",
+    lastName: "Kalakuntla",
     role: UserRole.SUPER_ADMIN
   },
   {

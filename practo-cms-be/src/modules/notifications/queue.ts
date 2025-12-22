@@ -25,22 +25,21 @@ const redisConfig: any = {
   db: 0,
 };
 
-// Parse Upstash Redis URL for better connection handling
-let redisConnectionConfig;
-if (process.env.REDIS_URL) {
-  // Use REDIS_URL directly for Upstash
-  redisConnectionConfig = process.env.REDIS_URL;
-} else {
-  // Fallback to individual config
-  redisConnectionConfig = {
-    ...redisConfig,
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    password: process.env.REDIS_PASSWORD || undefined,
-  };
-}
+// Use consistent Redis config for both queue and worker
+const redisConnectionConfig = {
+  port: 6379,
+  host: 'relative-cub-24032.upstash.io',
+  password: 'AV3gAAIncDFmZDMxM2E1YTYyMDI0MDA2OTk5MjhhYmYwNTg5ODhjMnAxMjQwMzI',
+  tls: {
+    rejectUnauthorized: false
+  },
+  connectTimeout: 60000,
+  lazyConnect: false, // Connect immediately
+  maxRetriesPerRequest: 3,
+  retryDelayOnFailover: 100
+};
 
-// Create notification queue with Upstash-optimized settings
+// Create notification queue with consistent Redis config
 export const notificationQueue = new Bull('notifications', {
   redis: redisConnectionConfig,
   settings: {

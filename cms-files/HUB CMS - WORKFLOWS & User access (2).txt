@@ -1,0 +1,401 @@
+1. USER TYPES & ROLE DEFINITIONS
+The system needs the following 8 user roles, each with clearly defined permissions.
+
+1.1 Super Admin (Practo Internal – 2–3 users)
+Purpose: System owners.​
+Permissions:
+●​ Create / edit / deactivate any user​
+●​ Assign roles​
+●​ Full access to every module​
+●​ Override approvals​
+●​ View all logs & analytics​
+
+1.2 Medical Reviewer (Practo Internal – Medical Team)
+Purpose: Validate medical accuracy across Script + Video stages.​
+Permissions:
+●​ Create & assign topics to Doctors​
+●​ Review + comment + reject + approve Scripts​
+●​ Review + comment + reject + approve Videos​
+●​ View all script versions​
+●​ View all doctor profiles​
+●​ Cannot publish to HUB​
+
+1.3 Brand Reviewer (Practo Internal – Brand/Marketing
+Team)
+Purpose: Validate brand tone, compliance, and communication quality.​
+Permissions:
+●​ Review + comment + reject + approve Scripts​
+●​ Review + comment + reject + approve Videos​
+●​ Cannot see Medical-only comments​
+●​ Cannot publish​
+
+1.4 Doctor Creator (External Doctor)
+Purpose: Provide medical input + approve final content bearing their name.​
+Permissions:
+●​ Receive topics assigned​
+●​ Upload pointers / flow notes​
+●​ Approve or request changes in Script​
+●​ Approve or request changes in Video​
+●​ View only their own content + status​
+●​ Cannot edit scripts directly​
+●​ Cannot view other doctors’ content​
+
+1.5 Agency POC (External Content Agency)
+
+Purpose: Develop script and final video outputs.​
+Permissions:
+●​ View topics + doctor notes​
+●​ Upload first draft of Script​
+●​ Upload revised Scripts per feedback​
+●​ Upload final Video​
+●​ Cannot approve​
+●​ Cannot assign topics​
+●​ Cannot publish​
+
+1.6 Content Approver (Practo Internal – CMO or Head of
+Content)
+Purpose: Final sign-off authority before a module moves to next stage.​
+Permissions:
+●​ View entire approval chain​
+●​ Approve or reject Script​
+●​ Approve or reject Video​
+●​ Cannot publish​
+●​ Higher authority than Brand Reviewer​
+
+1.7 Viewer / Commenter (Optional role)
+Purpose: For internal stakeholders who must see progress.​
+Permissions:
+
+●​ View-only access​
+●​ Add comments​
+●​ No edit, no approval privileges​
+
+1.8 Publisher (Practo Internal – App CMS Ops)
+Purpose: Push final approved content into Practo Hub.​
+Permissions:
+●​ Publish approved videos​
+●​ Edit metadata / tags​
+●​ No script/video editing​
+●​ Cannot override approvals​
+
+2. FULL WORKFLOW (SCRIPT + VIDEO) &
+USER RESPONSIBILITIES
+Below is the exact sequence engineering must build with locks and trigger events.
+
+STAGE 1 — TOPIC → DOCTOR INPUT
+Step 1: Topic Assignment
+Who: Medical Reviewer​
+Action: Assign topic → Doctor + Agency notified​
+System needs: Notification + Ticket created with Topic ID
+
+Step 2: Doctor Shares Pointers
+Who: Doctor Creator​
+Action: Upload rough notes / bullets / voice note​
+System needs: Doctor attachment upload
+
+STAGE 2 — SCRIPT WORKFLOW
+Step 3: Script Drafting
+Who: Agency POC​
+Action: Upload Script v1​
+System needs: Versioning + Comments enabled
+
+Step 4: Medical Review
+Who: Medical Reviewer​
+Action: Approve / Reject / Comment​
+If Reject: Script returns to Agency → Step 3 repeats
+
+Step 5: Brand Review
+Who: Brand Reviewer​
+Action: Approve / Reject / Comment​
+If Reject: Back to Agency → Step 3 repeats​
+Constraint: Script cannot enter Brand Review until Medical Review = Approved
+
+Step 6: Doctor Approval
+Who: Doctor Creator​
+Action: Approve / Reject​
+If Reject: Back to Agency → Step 3 repeats​
+Constraint: Doctor sees only final script stage
+
+Step 7: Final Script Lock
+Who: Content Approver** or Super Admin​
+Action: Lock Script​
+System triggers:
+●​ Notification to → Agency + Doctor + Medical Reviewer + Brand​
+●​ Script stage closed​
+●​ Move to Video Production stage (execution)​
+
+STAGE 3 — VIDEO WORKFLOW
+Step 8: Video Upload
+Who: Agency POC​
+Action: Upload Video v1 + metadata​
+Needs: Versioning, comments, timestamps
+
+Step 9: Brand Review (Video)
+Who: Brand Reviewer​
+Action: Approve / Reject​
+If Reject: Back to Agency → Step 8
+
+Step 10: Medical Review (Video)
+Who: Medical Reviewer​
+Action: Validate factual claims​
+If Reject: Back to Agency → Step 8
+Constraint: Brand Review must be Approved BEFORE Medical Reviewer sees it
+
+Step 11: Doctor Review
+Who: Doctor Creator​
+Action: Approve / Reject​
+If Reject: Back to Agency → Step 8
+
+Step 12: Final Video Lock
+Who: Content Approver or Super Admin​
+Action: Lock Video​
+Trigger: Notify Agency + Doctor + Medical + Brand​
+Flow: Moves to Publisher
+
+STAGE 4 — PUBLISHING
+Step 13: Publish
+Who: Publisher​
+Action: Push to Practo HUB​
+Fields: Title, Tags, Specialty, City, Language, Severity, Context markers, CTA​
+Constraint: Only locked Videos can be published
+
+3. PERMISSIONS TABLE
+(ENGINEERING-FRIENDLY GRID)
+Role
+
+View
+
+Comme
+nt
+
+Super
+Admin
+
+✔
+
+✔
+
+Upload
+
+✔
+
+Edit
+
+✔
+
+Approv
+e Script
+
+Approv
+e Video
+
+Publis
+h
+
+Assig
+n
+Topic
+s
+
+✔
+
+✔
+
+✔
+
+✔
+
+Medical
+Reviewe
+r
+
+✔
+
+✔
+
+✖
+
+✖
+
+✔
+
+✔
+
+✖
+
+✔
+
+Brand
+Reviewe
+r
+
+✔
+
+✔
+
+✖
+
+✖
+
+✔
+
+✔
+
+✖
+
+✖
+
+Doctor
+Creator
+
+✔
+(own
+only)
+
+✔
+
+Upload
+pointers
+
+✖
+
+Approve Approve ✖
+final
+final
+
+✖
+
+Agency
+POC
+
+✔
+
+✔
+
+✔
+(scripts/video
+s)
+
+✔ (for
+scripts)
+
+✖
+
+✖
+
+✖
+
+✖
+
+Content
+Approve
+r
+
+✔
+
+✔
+
+✖
+
+✖
+
+✔
+
+✔
+
+✖
+
+✖
+
+Publishe
+r
+
+✔
+
+✖
+
+✖
+
+Metadat
+a only
+
+✖
+
+✖
+
+✔
+
+✖
+
+Viewer
+
+✔
+
+✔
+
+✖
+
+✖
+
+✖
+
+✖
+
+✖
+
+✖
+
+4. SYSTEM REQUIREMENTS FOR
+ENGINEERING
+Mandatory Features:
+●​ Multi-stage approval pipeline​
+●​ Role-based access control (RBAC)​
+●​ Comments + version history​
+●​ Notifications at each step​
+●​ Script-to-video linking​
+
+●​ Multi-user feedback loops​
+●​ Status tracking​
+●​ Audit log for compliance​
+●​ Topic → Script → Video mapping​
+●​ SLA tracking (optional Phase 2)​
+
+5. NOTIFICATION RULES
+When a new version is uploaded:
+→ Medical + Brand + Doctor (depending on stage)
+
+When something is rejected:
+→ Agency notified + assignees notified​
+→ Status resets to previous stage
+
+When script/video is approved:
+→ Agency notified​
+→ Doctor notified​
+→ Next stage unlocked
+
+When final lock happens:
+→ Agency, Doctor, Medical, Brand all notified
+
+6. ADMIN PANEL REQUIREMENTS
+Super Admin must be able to:
+●​ Add/edit users​
+
+●​ Change roles​
+●​ Assign default permissions​
+●​ View full audit trail​
+●​ Force-move items if someone is unavailable​
+
+7. HIGH-LEVEL ENGINEERING
+CHECKLIST
+✔ Define role-based access schema​
+✔ Build 2 workflows (Script + Video)​
+✔ Sequential approval gates​
+✔ One-step-back logic on rejection​
+✔ Versioning for scripts + videos​
+✔ Tagging & metadata fields​
+✔ Notifications for all key events​
+✔ Publishing module​
+✔ Audit logs​
+✔ User management interface
+
+

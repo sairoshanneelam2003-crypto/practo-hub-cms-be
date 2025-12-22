@@ -1,0 +1,184 @@
+Week
+
+Milestone
+
+Tasks
+
+Deliverables
+
+Week-1
+
+Requirements & Design
+
+Review requirements; Finalize tech stack; Architecture diagram; API structure;
+Wireframes; Dev workflow
+
+Detailed architecture document
+
+Week-1
+
+Project Setup
+
+Initialize backend; Setup PostgreSQL; Docker; S3; Frontend; Git workflow; Linting
+
+Development environment ready
+
+Week-2
+
+Database Schema
+
+Design DB schema; Migrations; ORM models; Indexes; Relationships; Seed scripts
+
+Complete database schema
+
+Authentication
+
+Registration/login; Password hashing; Email verification; Password reset; Refresh tokens;
+Test APIs
+
+Working authentication system
+
+Week-2
+
+Release-1
+
+Week-3
+
+Basic Video Upload
+
+Video upload endpoint; S3 storage; Basic metadata; Upload validation
+
+Basic video upload functionality
+
+Week-3
+
+RBAC Implementation
+
+Permission system; Define 8 roles; Permission matrix; Decorators; Middleware; Role API;
+Tests
+
+Complete RBAC system
+
+Week-3
+
+User Management
+
+User CRUD; Role assignment; Listing; Deactivation; Profile mgmt; Testing
+
+User management system
+
+Week-4
+
+Topic Management
+
+Topic creation; Doctor assignment; Notifications; Listing; Doctor input upload
+
+Topic management complete
+
+Script Workflow
+
+Script upload; State machine; Approvals; Comments; Version compare; One-step-back
+logic; Visibility
+
+Script workflow complete
+
+Release-2
+
+Week-4
+
+Release-3
+
+Week-5
+
+File Management
+
+Chunk upload; Progress; Thumbnails; Validation; Deletion; Edge testing
+
+Week-5
+
+State machine; Approvals; Comments; Sequential gates; Role-based access; Version
+Video Workflow (Advanced) control
+
+Robust file management
+Complete video workflow system
+
+Week-6
+
+Notification System
+
+Email setup; Queue; Templates; Triggers; In-app notifications; Preferences
+
+Complete notification system
+
+Week-6
+
+Publishing Module
+
+Practo client; Publish endpoint; Auth; Status; Retry; Unpublish; End-to-end test
+
+Publishing system ready
+
+Week-7
+
+Admin Dashboard
+
+Admin UI; User mgmt; Role mgmt; Topic assignment; Approval dashboard; Audit logs;
+Analytics
+
+Admin panel
+
+Week-7
+
+User Interfaces
+
+Doctor UI; Agency UI; Reviewer UI; Publisher UI; Real-time updates
+
+All user interfaces ready
+
+Week-8
+
+Testing
+
+Unit tests; Integration tests; 8 roles; Rejection loops; Security; Load; Cross-browser
+
+Tested, bug-free system
+
+Release-4
+
+Release-5
+
+Week-8
+
+Bug Fixes & Polish
+
+Fix bugs; Improve errors; Loaders; DB optimization; API speed; UI polish
+
+Production-ready code
+
+Week-9
+
+Documentation
+
+API docs; User guides; Deployment; Troubleshooting; Admin manual; Code docs
+
+Complete documentation
+
+Week-9
+
+Production Setup
+
+Servers; DB config; CDN; SSL; Monitoring; Backups; CI/CD
+
+Production environment ready
+
+Week-10
+
+Production Deployment
+
+Go-live; Monitoring; Support; Feedback
+
+Live production system
+
+Final Release
+
+

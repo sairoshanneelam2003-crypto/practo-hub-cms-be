@@ -1,0 +1,165 @@
+Purpose
+The Practo Hub CMS will be the single control room to manage the complete lifecycle of
+doctor-led content — from upload → review → medical validation → editing → approval →
+publishing → analytics.
+It enables Practo to scale high-quality, compliant, AI-ready health content across categories and
+creators.
+
+Key Objectives
+●​ Host & Manage all Practo Hub videos, articles, and assets.
+●​ Streamline Workflow: Upload → Review → Approve → Publish → Track.
+●​ Enable Medical Compliance: Every video passes through dual-layer validation
+(Medical + Creative).
+●​ Ensure Seamless App Integration: Direct publishing to the Practo Hub tab (in-app &
+web).
+●​ Power Analytics & AI: Structured metadata and tagging to drive personalization, future
+AI summarization, and performance tracking.
+
+CMS Workflow
+Step 1 — Upload
+●​ Doctor or Content Team uploads raw video or edited file.​
+●​ Mandatory fields: Title, Doctor Name, Specialty, City, Language, Tags, Description, CTA
+Type (Quiz / Consult / Vault), Related Category.​
+●​ Auto-thumbnail & transcript generation (Phase 2).​
+
+Step 2 — Medical Review
+●​ Medical reviewer validates accuracy, tone, and disclaimers.​
+●​ Uses checklist: no medical claims, correct dosage, clarity of explanation.​
+
+Step 3 — Creative Editing
+●​ Practo Creative team adds subtitles, VO/subtitles, Practo branding, and final visual
+polish.​
+
+Step 4 — Final Approval
+●​ Dual-approval system (Medical + Content Head/CMO).​
+●​ “Approved” status triggers ready-to-publish flag.​
+
+Step 5 — Publishing
+●​ Approved content pushed via API to Practo Hub app & web (ad-free custom player).​
+●​ Option to cross-post teasers to Instagram/YouTube Shorts via link metadata.​
+●​ Deep-link CTA (practo://hub/videoID) for social → app flow.​
+
+Step 6 — Analytics
+●​ Post-publish dashboard: view count, CTR, quiz completion, consult conversion.​
+●​ Doctor-wise performance, specialty-level insights, average review time.​
+
+Hosting & Publishing Model
+Type
+
+Purpose
+
+Hosting
+Location
+
+Full-length videos (3–4
+min)
+
+Core Hub content with CTAs, quizzes
+
+Native
+
+Short teasers (≤90
+sec)
+
+Discovery assets on social (Instagram, YouTube
+Shorts)
+
+Native on
+social
+
+●​ Deep-link connects teaser → Hub video → quiz → consult.​
+
+Roles & Access Control
+Role
+
+Permissions
+
+Doctor Creator
+
+Upload drafts, add descriptions
+
+Medical Reviewer
+
+Approve/reject for accuracy
+
+Creative Editor
+
+Edit visuals, re-upload final cut
+
+Content Manager
+
+Assign reviewers, manage workflow
+
+Approver (CMO/Head of Content)
+
+Final publish approval
+
+Admin / Product
+
+Manage users, access levels,
+analytics
+
+Functional Modules
+Module
+
+Description
+
+Upload & Tagging
+
+Central repository with mandatory metadata.
+
+Review Queue
+
+Personalized dashboard by role; SLA timer per
+stage.
+
+Version Control
+
+Track revisions, comments, approvals.
+
+Publishing Engine
+
+Push to app + auto-archive on expiry.
+
+Search & Filters
+
+Doctor, specialty, status, language.
+
+Analytics
+Dashboard
+
+Watch time, engagement, conversion, View thru,
+Hook Rates
+
+Success Metrics
+KPI
+
+Target
+
+Avg. content approval cycle
+
+≤5
+days
+
+% of videos with complete
+metadata
+
+100%
+
+% of medically compliant content
+
+100%
+
+CMS uptime
+
+99%
+
+Review SLA adherence
+
+>90%
+
+App CTR (Hub → Consult)
+
+>2%
+
+

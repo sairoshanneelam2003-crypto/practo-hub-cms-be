@@ -1,0 +1,1340 @@
+Practo Hub CMS - Technical Architecture
+Document
+​
+Date: December 2024​
+Timeline: 8 Weeks MVP​
+
+1. EXECUTIVE SUMMARY
+1.1 Business Context
+Problem:​
+Scaling doctor-created medical video content requires structured workflows with medical
+compliance, multi-role approvals, and automated metadata generation. Solution:​
+Full-stack workflow management platform with:
+●​
+●​
+●​
+●​
+●​
+
+Multi-stage approval workflows (Topic → Script → Video → Publish)
+8-role RBAC system (internal reviewers, external doctors, agencies)
+AI-powered tagging and summarization
+Direct S3 uploads (no backend bottleneck)
+Publishing API integration with Practo Hub mobile app
+
+2. HIGH-LEVEL ARCHITECTURE
+
+2.2 Architecture Principles
+Monolith First:
+●​
+●​
+●​
+●​
+
+Single deployable unit for MVP
+Faster development, simpler ops
+Can extract microservices later if needed
+All modules in one codebase with clear boundaries
+
+Event-Driven Workflows:
+●​ State transitions trigger background jobs
+●​ Async email notifications
+
+●​ Async AI processing
+●​ Decoupled job execution
+Direct Client-to-S3 Upload:
+●​
+●​
+●​
+●​
+
+Presigned URLs (1-hour expiry)
+No file data through backend
+Reduces server load
+Better upload performance
+
+Database as Source of Truth:
+●​
+●​
+●​
+●​
+
+All workflow state in PostgreSQL
+ACID transactions for state changes
+No external state machine engine (complexity overkill for MVP)
+Simple status fields with validation constraints
+
+3. WORKFLOW ARCHITECTURE
+3.1 Workflow State Machine
+The system implements two sequential workflows: Script Workflow → Video Workflow
+
+3.2 Workflow Implementation Strategy
+Decision: Database-driven state machine (status fields + service layer validation)
+Alternatives Considered:
+●​
+●​
+●​
+●​
+
+Temporal - Distributed workflow orchestration (for complex microservices)
+AWS Step Functions - Serverless workflow service (for AWS-native apps)
+Camunda - Business Process Management platform (for enterprise BPM)
+Apache Airflow - Workflow scheduler (for data pipelines)
+
+Our Workflow Characteristics:
+
+✅ Simple linear approval chains (DRAFT → MEDICAL → BRAND → DOCTOR →
+LOCKED)
+●​ ✅ No complex branching logic (if/else with 5+ paths)
+●​ ✅ No parallel execution (all reviewers sequential)
+●​ ✅ Fast execution (minutes, not hours/days)
+●​ ✅ Deterministic transitions (clear rules)
+●​ ✅ Single service (monolith, not distributed)
+●​
+
+For MVP, we'll use a simple configuration-based approach. We'll revisit this decision if workflows
+become more complex.
+
+3.3 Key Workflow Features
+Version Control:
+●​
+●​
+●​
+●​
+
+Each script/video upload creates new version (auto-incrementing)
+All versions stored in DB
+Can view any historical version
+No delete, only new versions
+
+Comment System:
+●​
+●​
+●​
+●​
+
+Reviewers add comments at any stage
+Comments tied to specific version
+Visible to all stakeholders (no role restrictions)
+Timestamps + author tracking
+
+Notification Triggers:
+●​ State transition → Email + In-app notification
+●​ Rejection → Email with comments to Agency
+
+●​ Lock → Email to all stakeholders
+●​ Publish → Email to Doctor
+Audit Trail:
+●​
+●​
+●​
+●​
+
+Every state change logged in audit_logs table
+Records: user, action, old/new state, timestamp, IP
+Immutable (append-only)
+For compliance and debugging
+
+4. DATABASE DESIGN
+4.1 Schema Overview
+Core Entities:
+Users (8 roles, RBAC)
+↓ creates
+Topics (content assignments)
+↓ has
+Scripts (text content) + Videos (media content)
+↓ has
+Reviews (approval tracking) + Comments (feedback)
+Supporting:
+- Notifications (email + in-app)
+- AuditLogs (compliance)
+- DoctorPointers (initial doctor input)
+Design Principles:
+●​
+●​
+●​
+●​
+
+Foreign keys with CASCADE/RESTRICT based on business logic
+JSONB for flexible AI metadata (tags, entities, etc.)
+Enums for type safety on status fields
+Comprehensive indexes for query performance
+
+4.2 Complete Database Schema
+-======================================================================
+======
+
+-- ENUMS (Type Safety)
+-======================================================================
+======
+CREATE TYPE user_role AS ENUM (
+'SUPER_ADMIN',
+'MEDICAL_REVIEWER',
+'BRAND_REVIEWER',
+'DOCTOR_CREATOR',
+'AGENCY_POC',
+'CONTENT_APPROVER',
+'PUBLISHER',
+'VIEWER'
+);
+CREATE TYPE user_status AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
+CREATE TYPE topic_status AS ENUM (
+'ASSIGNED',
+'DOCTOR_INPUT_PENDING',
+'DOCTOR_INPUT_RECEIVED',
+'IN_PROGRESS',
+'COMPLETED'
+);
+CREATE TYPE script_status AS ENUM (
+'DRAFT',
+'MEDICAL_REVIEW',
+'BRAND_REVIEW',
+'DOCTOR_REVIEW',
+'LOCKED',
+'REJECTED'
+);
+CREATE TYPE video_status AS ENUM (
+'DRAFT',
+'BRAND_REVIEW',
+
+'MEDICAL_REVIEW',
+'DOCTOR_REVIEW',
+'LOCKED',
+'PUBLISHED',
+'ARCHIVED',
+'REJECTED'
+);
+CREATE TYPE review_decision AS ENUM ('PENDING', 'APPROVED',
+'REJECTED');
+CREATE TYPE notification_type AS ENUM ('EMAIL', 'IN_APP');
+-======================================================================
+======
+-- CORE TABLES
+-======================================================================
+======
+-- Users: Authentication + RBAC
+CREATE TABLE users (
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+email
+
+VARCHAR(255) UNIQUE NOT NULL,
+
+password
+
+VARCHAR(255) NOT NULL,
+
+first_name
+
+VARCHAR(100) NOT NULL,
+
+last_name
+
+VARCHAR(100) NOT NULL,
+
+role
+
+user_role NOT NULL,
+
+status
+
+user_status DEFAULT 'ACTIVE',
+
+-- Doctor-specific fields
+specialty
+
+VARCHAR(100),
+
+city
+
+VARCHAR(100),
+
+profile_image
+
+VARCHAR(500),
+
+created_at
+
+TIMESTAMP DEFAULT NOW(),
+
+updated_at
+
+TIMESTAMP DEFAULT NOW(),
+
+last_login_at
+
+TIMESTAMP,
+
+-- bcrypt hashed
+
+CONSTRAINT valid_email CHECK (email ~*
+'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$')
+);
+-- Topics: Content assignments to doctors
+CREATE TABLE topics (
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+title
+
+VARCHAR(255) NOT NULL,
+
+description
+
+TEXT NOT NULL,
+
+status
+
+topic_status DEFAULT 'ASSIGNED',
+
+assigned_doctor_id
+
+UUID NOT NULL REFERENCES users(id) ON DELETE
+
+RESTRICT,
+created_by_id
+
+UUID NOT NULL REFERENCES users(id) ON DELETE
+
+RESTRICT,
+created_at
+
+TIMESTAMP DEFAULT NOW(),
+
+updated_at
+
+TIMESTAMP DEFAULT NOW()
+
+);
+-- Doctor Pointers: Initial doctor input (notes, audio, docs)
+CREATE TABLE doctor_pointers (
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+topic_id
+
+UUID NOT NULL REFERENCES topics(id) ON DELETE
+
+CASCADE,
+doctor_id
+
+UUID NOT NULL REFERENCES users(id) ON DELETE
+
+RESTRICT,
+notes
+
+TEXT,
+
+file_url
+
+VARCHAR(500),
+
+-- S3 URL
+
+file_type
+
+VARCHAR(50),
+
+-- pdf, mp3, etc.
+
+created_at
+
+TIMESTAMP DEFAULT NOW()
+
+);
+-- Scripts: Text content with versioning + AI metadata
+CREATE TABLE scripts (
+
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+topic_id
+
+UUID NOT NULL REFERENCES topics(id) ON DELETE
+
+CASCADE,
+version
+
+INTEGER DEFAULT 1,
+
+content
+
+TEXT NOT NULL,
+
+status
+
+script_status DEFAULT 'DRAFT',
+
+-- AI-generated fields
+summary
+
+TEXT,
+
+tags
+
+TEXT[],
+
+entities
+
+JSONB,
+
+-- {medications: [],
+
+conditions: [], procedures: []}
+quality_score
+
+INTEGER CHECK (quality_score BETWEEN 0 AND 100),
+
+ai_processed_at
+
+TIMESTAMP,
+
+ai_processing_status VARCHAR(50),
+
+-- pending, completed, failed
+
+-- Workflow tracking
+uploaded_by_id
+
+UUID REFERENCES users(id),
+
+locked_by_id
+
+UUID REFERENCES users(id),
+
+locked_at
+
+TIMESTAMP,
+
+created_at
+
+TIMESTAMP DEFAULT NOW(),
+
+updated_at
+
+TIMESTAMP DEFAULT NOW(),
+
+CONSTRAINT valid_version CHECK (version > 0),
+CONSTRAINT locked_immutable CHECK (
+(status = 'LOCKED' AND locked_by_id IS NOT NULL AND locked_at IS
+NOT NULL) OR
+(status != 'LOCKED')
+)
+);
+-- Script Reviews: Approval tracking
+CREATE TABLE script_reviews (
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+script_id
+
+UUID NOT NULL REFERENCES scripts(id) ON DELETE
+
+CASCADE,
+
+reviewer_id
+
+UUID NOT NULL REFERENCES users(id) ON DELETE
+
+RESTRICT,
+reviewer_type
+
+user_role NOT NULL,
+
+decision
+
+review_decision DEFAULT 'PENDING',
+
+comments
+
+TEXT,
+
+reviewed_at
+
+TIMESTAMP,
+
+created_at
+
+TIMESTAMP DEFAULT NOW()
+
+);
+-- Videos: Media content with metadata + AI features
+CREATE TABLE videos (
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+topic_id
+
+UUID NOT NULL REFERENCES topics(id) ON DELETE
+
+CASCADE,
+script_id
+
+UUID REFERENCES scripts(id) ON DELETE SET NULL,
+
+title
+
+VARCHAR(255) NOT NULL,
+
+description
+
+TEXT,
+
+-- File URLs (S3)
+video_url
+
+VARCHAR(500) NOT NULL,
+
+thumbnail_url
+
+VARCHAR(500),
+
+duration
+
+INTEGER,
+
+-- seconds
+
+file_size
+
+BIGINT,
+
+-- bytes
+
+-- Metadata (required for publishing)
+doctor_name
+
+VARCHAR(255) NOT NULL,
+
+specialty
+
+VARCHAR(100) NOT NULL,
+
+language
+
+VARCHAR(50) NOT NULL,
+
+city
+
+VARCHAR(100) NOT NULL,
+
+cta_type
+
+VARCHAR(50) NOT NULL, -- QUIZ, CONSULT, VAULT
+
+tags
+
+TEXT[] DEFAULT '{}',
+
+-- AI-generated fields
+transcript
+
+TEXT,
+
+transcript_url
+
+VARCHAR(500),
+
+-- S3 URL for timestamped
+
+transcript
+summary
+
+TEXT,
+
+short_summary
+
+TEXT,
+
+-- 50 words
+
+key_takeaways
+
+TEXT[],
+
+-- 3-5 bullet points
+
+entities
+
+JSONB,
+
+quality_score
+
+INTEGER CHECK (quality_score BETWEEN 0 AND
+
+100),
+related_video_ids
+
+TEXT[],
+
+ai_processed_at
+
+TIMESTAMP,
+
+ai_processing_status VARCHAR(50),
+-- Workflow state
+status
+
+video_status DEFAULT 'DRAFT',
+
+version
+
+INTEGER DEFAULT 1,
+
+uploaded_by_id
+
+UUID REFERENCES users(id),
+
+locked_by_id
+
+UUID REFERENCES users(id),
+
+locked_at
+
+TIMESTAMP,
+
+published_at
+
+TIMESTAMP,
+
+published_by_id
+
+UUID REFERENCES users(id),
+
+deep_link
+
+VARCHAR(500),
+
+--
+
+practo://hub/video/{id}
+-- Analytics
+view_count
+
+INTEGER DEFAULT 0,
+
+created_at
+
+TIMESTAMP DEFAULT NOW(),
+
+updated_at
+
+TIMESTAMP DEFAULT NOW(),
+
+CONSTRAINT valid_duration CHECK (duration >= 0),
+CONSTRAINT valid_file_size CHECK (file_size > 0),
+CONSTRAINT valid_version CHECK (version > 0),
+CONSTRAINT valid_cta_type CHECK (cta_type IN ('QUIZ', 'CONSULT',
+'VAULT')),
+CONSTRAINT locked_immutable CHECK (
+
+(status = 'LOCKED' AND locked_by_id IS NOT NULL AND locked_at IS
+NOT NULL) OR
+(status != 'LOCKED')
+)
+);
+-- Video Reviews: Approval tracking
+CREATE TABLE video_reviews (
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+video_id
+
+UUID NOT NULL REFERENCES videos(id) ON DELETE
+
+CASCADE,
+reviewer_id
+
+UUID NOT NULL REFERENCES users(id) ON DELETE
+
+RESTRICT,
+reviewer_type
+
+user_role NOT NULL,
+
+decision
+
+review_decision DEFAULT 'PENDING',
+
+comments
+
+TEXT,
+
+reviewed_at
+
+TIMESTAMP,
+
+created_at
+
+TIMESTAMP DEFAULT NOW()
+
+);
+-- Comments: Feedback system (polymorphic)
+CREATE TABLE comments (
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+-- One of these must be set
+script_id
+
+UUID REFERENCES scripts(id) ON DELETE CASCADE,
+
+video_id
+
+UUID REFERENCES videos(id) ON DELETE CASCADE,
+
+author_id
+
+UUID NOT NULL REFERENCES users(id) ON DELETE
+
+RESTRICT,
+content
+
+TEXT NOT NULL,
+
+created_at
+
+TIMESTAMP DEFAULT NOW(),
+
+updated_at
+
+TIMESTAMP DEFAULT NOW(),
+
+CONSTRAINT comment_target CHECK (
+
+(script_id IS NOT NULL AND video_id IS NULL) OR
+(script_id IS NULL AND video_id IS NOT NULL)
+)
+);
+-- Notifications: Email + in-app alerts
+CREATE TABLE notifications (
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+user_id
+
+UUID NOT NULL REFERENCES users(id) ON DELETE
+
+CASCADE,
+type
+
+notification_type DEFAULT 'EMAIL',
+
+title
+
+VARCHAR(255) NOT NULL,
+
+message
+
+TEXT NOT NULL,
+
+is_read
+
+BOOLEAN DEFAULT FALSE,
+
+read_at
+
+TIMESTAMP,
+
+metadata
+
+JSONB,
+
+-- {videoId, action,
+
+etc.}
+created_at
+
+TIMESTAMP DEFAULT NOW()
+
+);
+-- Audit Logs: Compliance and debugging
+CREATE TABLE audit_logs (
+id
+
+UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+user_id
+
+UUID NOT NULL REFERENCES users(id) ON DELETE
+
+RESTRICT,
+action
+
+VARCHAR(100) NOT NULL,
+
+-- APPROVE_SCRIPT,
+
+entity_type
+
+VARCHAR(50) NOT NULL,
+
+-- TOPIC, SCRIPT, VIDEO
+
+entity_id
+
+UUID NOT NULL,
+
+old_value
+
+JSONB,
+
+-- Previous state
+
+new_value
+
+JSONB,
+
+-- New state
+
+REJECT_VIDEO, etc.
+
+ip_address
+
+VARCHAR(45),
+
+user_agent
+
+VARCHAR(500),
+
+created_at
+
+TIMESTAMP DEFAULT NOW()
+
+);
+-======================================================================
+======
+-- INDEXES (Query Performance)
+-======================================================================
+======
+-- Users
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_status ON users(status);
+-- Topics
+CREATE INDEX idx_topics_assigned_doctor ON topics(assigned_doctor_id);
+CREATE INDEX idx_topics_status ON topics(status);
+CREATE INDEX idx_topics_created_at ON topics(created_at DESC);
+-- Scripts
+CREATE INDEX idx_scripts_topic ON scripts(topic_id);
+CREATE INDEX idx_scripts_status ON scripts(status);
+CREATE INDEX idx_scripts_created_at ON scripts(created_at DESC);
+CREATE INDEX idx_scripts_tags ON scripts USING GIN(tags);
+
+--
+
+Array search
+-- Script Reviews
+CREATE INDEX idx_script_reviews_script ON script_reviews(script_id);
+CREATE INDEX idx_script_reviews_reviewer ON
+script_reviews(reviewer_id);
+CREATE INDEX idx_script_reviews_decision ON script_reviews(decision);
+-- Videos
+
+CREATE INDEX idx_videos_topic ON videos(topic_id);
+CREATE INDEX idx_videos_status ON videos(status);
+CREATE INDEX idx_videos_specialty ON videos(specialty);
+CREATE INDEX idx_videos_language ON videos(language);
+CREATE INDEX idx_videos_published_at ON videos(published_at DESC);
+CREATE INDEX idx_videos_tags ON videos USING GIN(tags);
+
+--
+
+Array search
+-- Video Reviews
+CREATE INDEX idx_video_reviews_video ON video_reviews(video_id);
+CREATE INDEX idx_video_reviews_reviewer ON video_reviews(reviewer_id);
+CREATE INDEX idx_video_reviews_decision ON video_reviews(decision);
+-- Comments
+CREATE INDEX idx_comments_script ON comments(script_id);
+CREATE INDEX idx_comments_video ON comments(video_id);
+CREATE INDEX idx_comments_author ON comments(author_id);
+-- Notifications
+CREATE INDEX idx_notifications_user_unread ON notifications(user_id,
+is_read);
+CREATE INDEX idx_notifications_created_at ON notifications(created_at
+DESC);
+-- Audit Logs
+CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type,
+entity_id);
+CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
+
+5. TECHNOLOGY STACK
+5.1 Backend
+●​ Runtime: Node.js 20 LTS
+●​ Framework: Express.js + TypeScript 5.x
+
+●​ Database: PostgreSQL 15+ (AWS RDS Multi-AZ)
+●​ ORM: Prisma 5.x (type-safe queries, automatic migrations)
+●​ Cache & Queue: Redis 7+ (AWS ElastiCache) - manages job queue with Bull for
+reliable background job execution
+●​ Authentication: JWT (RS256), bcrypt password hashing
+●​ Validation: Zod for input validation
+
+5.2 Frontend
+●​ Framework: Next.js 14 (App Router) + React 18 + TypeScript
+●​ Styling: TailwindCSS 3.x (utility-first CSS framework)
+●​ UI Components: shadcn/ui (High-quality React components built on Radix UI primitives
+for accessibility. Copy-paste approach, no NPM bloat. Alternatives: MUI, Ant Design,
+Chakra UI)
+●​ State Management:
+○​ TanStack Query (Server state management with auto-caching, refetching, and
+optimistic updates. Alternatives: Redux Toolkit, SWR, Apollo Client)
+○​ Zustand (Client state)
+●​ Forms: React Hook Form + Zod
+
+5.3 Infrastructure (AWS)
+●​
+●​
+●​
+●​
+●​
+●​
+●​
+
+Compute: ECS Fargate (auto-scaling containers)
+Database: RDS PostgreSQL Multi-AZ
+Cache: ElastiCache Redis Cluster
+Storage: S3 + CloudFront CDN
+Email: SES
+Monitoring: CloudWatch + Sentry
+CI/CD: GitHub Actions → ECR → ECS
+
+5.4 AI Services
+●​ Content Analysis: Claude API (Anthropic) for tagging and summarization
+●​ Transcription: AWS Transcribe (Phase 2)
+
+6. WORKFLOW HANDLING - DETAILED
+IMPLEMENTATION
+6.1 State Management Approach
+
+We use a database-driven state machine rather than external workflow engines (Temporal,
+Camunda, etc.) for MVP simplicity.
+Why Database-Driven:
+●​
+●​
+●​
+●​
+●​
+
+Workflows are simple linear approval chains (not complex branching logic)
+All state persists in PostgreSQL status columns
+No additional infrastructure to manage
+Easy to debug (just SQL queries)
+Can migrate to external engine later if complexity increases
+
+Alternative Considered: Temporal/Camunda workflow engines Decision: Not needed for MVP
+- adds infrastructure complexity without proportional benefit for simple linear workflows
+
+6.2 State Storage & Transitions
+State Storage Model:
+All workflow state is stored in database columns using PostgreSQL ENUMs:
+Script States: DRAFT → MEDICAL_REVIEW → BRAND_REVIEW → DOCTOR_REVIEW →
+LOCKED
+Video States: DRAFT → BRAND_REVIEW → MEDICAL_REVIEW → DOCTOR_REVIEW →
+LOCKED → PUBLISHED
+State Transition Rules:
+Each state has defined allowed transitions with role requirements:
+
+Current State
+
+Action
+
+Next State
+
+Required Role
+
+Script
+
+DRAFT
+
+SUBMIT
+
+MEDICAL_REVIEW
+
+AGENCY_POC
+
+Script: DRAFT
+
+MEDICAL_REVIEW
+
+APPROVE
+
+BRAND_REVIEW
+
+MEDICAL_REVIEWER
+
+Script:
+MEDICAL_REVIEW
+
+MEDICAL_REVIEW
+
+REJECT
+
+DRAFT
+
+MEDICAL_REVIEWER
+
+Script:
+MEDICAL_REVIEW
+
+BRAND_REVIEW
+
+APPROVE
+
+DOCTOR_REVIEW
+
+BRAND_REVIEWER
+
+Script:
+BRAND_REVIEW
+
+BRAND_REVIEW
+
+REJECT
+
+DRAFT
+
+BRAND_REVIEWER
+
+Script:
+BRAND_REVIEW
+
+DOCTOR_REVIEW
+
+APPROVE
+
+LOCKED
+
+DOCTOR_CREATOR
+
+Script:
+DOCTOR_REVIEW
+
+DOCTOR_REVIEW
+
+REJECT
+
+DRAFT
+
+DOCTOR_CREATOR
+
+Script:
+DOCTOR_REVIEW
+
+(Similar rules for Video workflow with Brand review before Medical)
+Transition Enforcement:
+Service layer validates every state change:
+1.​ Load current state from database
+2.​ Check transition is valid (defined in transition rules)
+3.​ Verify user has required role
+4.​ Execute state change in database transaction
+5.​ Create review record (who approved/rejected when)
+6.​ Create audit log entry
+7.​ Trigger background notifications
+Transaction Boundaries:
+All state changes wrapped in database transactions to ensure consistency:
+●​ State update
+●​ Review record creation
+●​ Audit log entry
+
+●​ All succeed or all rollback (ACID guarantee)
+
+6.3 Lock Mechanism
+Purpose: Prevent modifications to approved content.
+Lock Rules:
+●​
+●​
+●​
+●​
+●​
+
+Only CONTENT_APPROVER or SUPER_ADMIN can lock
+Content must be in DOCTOR_REVIEW state with doctor approval
+Once locked, content becomes immutable
+Only SUPER_ADMIN can unlock (emergency override)
+Lock records who locked and when (locked_by_id, locked_at)
+
+Database Enforcement:
+PostgreSQL CHECK constraint ensures locked content always has:
+●​ locked_by_id (user who locked)
+●​ locked_at (timestamp)
+Application layer prevents any UPDATE queries on locked content by adding WHERE clause:
+status != 'LOCKED'
+Lock Notification: When content is locked, all stakeholders receive notification:
+●​ Agency POC (your content is locked)
+●​ All reviewers (this content is finalized)
+●​ Assigned doctor (content is ready for next stage)
+
+6.4 Rejection Loop Handling
+Rejection Flow:
+Any Reviewer Rejects
+↓
+Status returns to DRAFT
+↓
+Review record created (decision: REJECTED, with comments)
+↓
+Agency POC notified via email with feedback
+↓
+Agency uploads new version (version++)
+↓
+
+Workflow restarts from MEDICAL_REVIEW
+Key Points:
+●​
+●​
+●​
+●​
+●​
+●​
+
+Rejection can happen at ANY review stage
+ALL rejections return status to DRAFT
+Rejection feedback stored in review.comments field
+Agency POC gets email with specific feedback
+New version goes through entire workflow again
+No shortcuts - full approval chain required
+
+Rejection Data Captured:
+●​
+●​
+●​
+●​
+
+Who rejected (reviewer_id)
+When rejected (reviewed_at)
+Why rejected (comments field - free text)
+What was rejected (entity_id, version)
+
+6.5 Version Control
+Versioning Strategy:
+Every script/video upload creates NEW database row:
+Topic: "Diabetes Management"
+├─ Script v1 (REJECTED by Medical Reviewer)
+├─ Script v2 (REJECTED by Brand Reviewer)
+├─ Script v3 (LOCKED - approved by all)
+├─ Video v1 (REJECTED by Doctor)
+└─ Video v2 (PUBLISHED - final version)
+Version Properties:
+●​
+●​
+●​
+●​
+●​
+
+Auto-incrementing integer (v1, v2, v3...)
+Each version is separate database record
+All historical versions retained (no delete)
+Can query any past version for audit
+Current version = highest version number for that topic
+
+Why This Approach:
+●​
+●​
+●​
+●​
+
+Compliance requirement (must retain all versions)
+Simple to implement (no complex diff logic)
+Easy to audit (just query by version)
+Clear lineage (can trace all attempts)
+
+6.6 Notification System
+Notification Architecture:
+State Change Event
+↓
+Background Job Queue (Redis + Bull)
+↓
+Job Processor determines recipients
+↓
+┌───┴───┐
+↓
+
+↓
+
+Email
+
+In-App
+
+Notification Notification
+↓
+
+↓
+
+AWS SES
+
+Database
+Record
+
+Notification Triggers:
+Event
+
+Recipients
+
+Channel
+
+Script submitted for review
+
+Next stage
+reviewer
+
+Email + In-app
+
+Script approved
+
+Next stage
+reviewer
+
+Email + In-app
+
+Script/Video rejected
+
+Agency POC
+
+Email (with feedback) + In-app
+
+Script locked
+
+All stakeholders
+
+Email + In-app
+
+Video published
+
+Assigned doctor
+
+Email + In-app
+
+Email Delivery:
+●​
+●​
+●​
+●​
+
+Queued via Bull (Redis-based job queue)
+AWS SES for sending
+Retry logic: 3 attempts with exponential backoff
+Failed emails logged but don't block workflow
+
+In-App Notifications:
+●​ Stored in notifications table
+
+●​ Badge count on navbar
+●​ Mark as read functionality
+●​ 30-day retention (auto-cleanup)
+
+6.7 Comment System
+Comment Architecture:
+Polymorphic relationship - comments can attach to scripts OR videos:
+comments table
+├─ script_id (nullable)
+├─ video_id (nullable)
+├─ author_id (who wrote it)
+├─ content (the comment text)
+└─ created_at
+CHECK constraint: exactly one of script_id or video_id must be set
+Comment Features (MVP):
+●​
+●​
+●​
+●​
+●​
+●​
+●​
+
+✅ Any role can comment (no restrictions)
+✅ Comments visible to all stakeholders
+✅ Flat list (no threading/nesting)
+✅ Immutable (no edit/delete - audit requirement)
+✅ Includes author name + role + timestamp
+❌ No @mentions (Phase 2)
+❌ No resolved status (Phase 2)
+
+Comment Use Cases:
+●​
+●​
+●​
+●​
+
+Reviewers add specific feedback during review
+Agency asks clarifying questions
+Doctors provide additional context
+General discussion about content
+
+6.8 Audit Trail
+Audit Log Structure:
+Every significant action creates audit log entry:
+audit_logs table captures:
+├─ user_id (who did it)
+
+├─ action (what they did: APPROVE_SCRIPT, REJECT_VIDEO, etc.)
+├─ entity_type (SCRIPT or VIDEO)
+├─ entity_id (which specific item)
+├─ old_value (state before - JSON)
+├─ new_value (state after - JSON)
+├─ ip_address (where from)
+├─ user_agent (which browser/device)
+└─ created_at (when)
+Actions Logged:
+●​
+●​
+●​
+●​
+●​
+
+All state transitions (submit, approve, reject, lock, publish)
+User login/logout
+Permission changes
+File uploads
+Comment creation
+
+Audit Queries:
+Common audit questions answered:
+●​
+●​
+●​
+●​
+
+"Who approved this video?" → Filter by entity_id + action=APPROVE
+"When was this locked?" → Filter by entity_id + action=LOCK
+"What did this user do today?" → Filter by user_id + date
+"Show me full history of this video" → Filter by entity_id, order by created_at
+
+Retention:
+●​ Indefinite storage (compliance requirement)
+●​ Indexed by entity_id, user_id, created_at for fast queries
+●​ JSON fields allow flexible querying of state changes
+
+6.9 Workflow Monitoring
+Key Metrics Tracked:
+Per Stage:
+●​ Average time in each review stage
+●​ Number of items pending in each stage
+●​ Rejection rate per stage
+Overall:
+
+●​ Average approval cycle time (draft → published)
+●​ Bottleneck stages (longest wait times)
+●​ Most common rejection reasons
+Alerts:
+●​ Content stuck in review >5 days → Alert content team
+●​ Rejection rate >30% → Alert quality team
+●​ Publish failure rate >1% → Alert ops team
+Dashboard Queries:
+Metrics computed via SQL queries:
+●​ Time in stage: reviewed_at - created_at from reviews table
+●​ Pending count: COUNT(*) WHERE status = 'MEDICAL_REVIEW'
+●​ Rejection rate: COUNT(rejected) / COUNT(total) * 100
+
+
