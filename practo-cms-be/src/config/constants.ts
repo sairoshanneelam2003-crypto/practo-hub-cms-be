@@ -36,11 +36,11 @@ export const SCRIPT_TRANSITIONS: Record<ScriptStatus, Partial<Record<ScriptActio
   [ScriptStatus.MEDICAL_REVIEW]: {
     APPROVE: {
       nextState: ScriptStatus.BRAND_REVIEW,
-      requiredRoles: [UserRole.MEDICAL_REVIEWER, UserRole.SUPER_ADMIN]
+      requiredRoles: [UserRole.MEDICAL_AFFAIRS, UserRole.SUPER_ADMIN]
     },
     REJECT: {
       nextState: ScriptStatus.DRAFT, // Can't go further back
-      requiredRoles: [UserRole.MEDICAL_REVIEWER, UserRole.SUPER_ADMIN]
+      requiredRoles: [UserRole.MEDICAL_AFFAIRS, UserRole.SUPER_ADMIN]
     }
   },
   
@@ -60,11 +60,11 @@ export const SCRIPT_TRANSITIONS: Record<ScriptStatus, Partial<Record<ScriptActio
   [ScriptStatus.DOCTOR_REVIEW]: {
     APPROVE: {
       nextState: ScriptStatus.APPROVED, // Moves to APPROVED, waiting for Content Approver to lock
-      requiredRoles: [UserRole.DOCTOR_CREATOR, UserRole.SUPER_ADMIN]
+      requiredRoles: [UserRole.DOCTOR, UserRole.SUPER_ADMIN]
     },
     REJECT: {
       nextState: ScriptStatus.BRAND_REVIEW, // ONE STEP BACK
-      requiredRoles: [UserRole.DOCTOR_CREATOR, UserRole.SUPER_ADMIN]
+      requiredRoles: [UserRole.DOCTOR, UserRole.SUPER_ADMIN]
     }
   },
   
@@ -122,11 +122,11 @@ export const VIDEO_TRANSITIONS: Record<VideoStatus, Partial<Record<VideoAction, 
   [VideoStatus.MEDICAL_REVIEW]: {
     APPROVE: {
       nextState: VideoStatus.DOCTOR_REVIEW,
-      requiredRoles: [UserRole.MEDICAL_REVIEWER, UserRole.SUPER_ADMIN]
+      requiredRoles: [UserRole.MEDICAL_AFFAIRS, UserRole.SUPER_ADMIN]
     },
     REJECT: {
       nextState: VideoStatus.BRAND_REVIEW, // ONE STEP BACK
-      requiredRoles: [UserRole.MEDICAL_REVIEWER, UserRole.SUPER_ADMIN]
+      requiredRoles: [UserRole.MEDICAL_AFFAIRS, UserRole.SUPER_ADMIN]
     }
   },
   
@@ -134,11 +134,11 @@ export const VIDEO_TRANSITIONS: Record<VideoStatus, Partial<Record<VideoAction, 
   [VideoStatus.DOCTOR_REVIEW]: {
     APPROVE: {
       nextState: VideoStatus.APPROVED, // Moves to APPROVED, waiting for Content Approver to lock
-      requiredRoles: [UserRole.DOCTOR_CREATOR, UserRole.SUPER_ADMIN]
+      requiredRoles: [UserRole.DOCTOR, UserRole.SUPER_ADMIN]
     },
     REJECT: {
       nextState: VideoStatus.MEDICAL_REVIEW, // ONE STEP BACK
-      requiredRoles: [UserRole.DOCTOR_CREATOR, UserRole.SUPER_ADMIN]
+      requiredRoles: [UserRole.DOCTOR, UserRole.SUPER_ADMIN]
     }
   },
   

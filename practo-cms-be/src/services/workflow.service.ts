@@ -849,11 +849,11 @@ export class WorkflowService {
   private static getRolesForScriptStage(status: ScriptStatus): UserRole[] {
     switch (status) {
       case ScriptStatus.MEDICAL_REVIEW:
-        return [UserRole.MEDICAL_REVIEWER, UserRole.SUPER_ADMIN];
+        return [UserRole.MEDICAL_AFFAIRS, UserRole.SUPER_ADMIN];
       case ScriptStatus.BRAND_REVIEW:
         return [UserRole.BRAND_REVIEWER, UserRole.SUPER_ADMIN];
       case ScriptStatus.DOCTOR_REVIEW:
-        return [UserRole.DOCTOR_CREATOR, UserRole.SUPER_ADMIN];
+        return [UserRole.DOCTOR, UserRole.SUPER_ADMIN];
       case ScriptStatus.APPROVED:
         return [UserRole.CONTENT_APPROVER, UserRole.SUPER_ADMIN];
       default:
@@ -869,9 +869,9 @@ export class WorkflowService {
       case VideoStatus.BRAND_REVIEW:
         return [UserRole.BRAND_REVIEWER, UserRole.SUPER_ADMIN];
       case VideoStatus.MEDICAL_REVIEW:
-        return [UserRole.MEDICAL_REVIEWER, UserRole.SUPER_ADMIN];
+        return [UserRole.MEDICAL_AFFAIRS, UserRole.SUPER_ADMIN];
       case VideoStatus.DOCTOR_REVIEW:
-        return [UserRole.DOCTOR_CREATOR, UserRole.SUPER_ADMIN];
+        return [UserRole.DOCTOR, UserRole.SUPER_ADMIN];
       case VideoStatus.APPROVED:
         return [UserRole.CONTENT_APPROVER, UserRole.SUPER_ADMIN];
       case VideoStatus.LOCKED:
@@ -967,13 +967,13 @@ export class WorkflowService {
     
     if (contentType === 'script') {
       switch (userRole) {
-        case UserRole.MEDICAL_REVIEWER:
+        case UserRole.MEDICAL_AFFAIRS:
           statuses = [ScriptStatus.MEDICAL_REVIEW];
           break;
         case UserRole.BRAND_REVIEWER:
           statuses = [ScriptStatus.BRAND_REVIEW];
           break;
-        case UserRole.DOCTOR_CREATOR:
+        case UserRole.DOCTOR:
           statuses = [ScriptStatus.DOCTOR_REVIEW];
           break;
         case UserRole.CONTENT_APPROVER:
@@ -1033,10 +1033,10 @@ export class WorkflowService {
         case UserRole.BRAND_REVIEWER:
           statuses = [VideoStatus.BRAND_REVIEW];
           break;
-        case UserRole.MEDICAL_REVIEWER:
+        case UserRole.MEDICAL_AFFAIRS:
           statuses = [VideoStatus.MEDICAL_REVIEW];
           break;
-        case UserRole.DOCTOR_CREATOR:
+        case UserRole.DOCTOR:
           statuses = [VideoStatus.DOCTOR_REVIEW];
           break;
         case UserRole.CONTENT_APPROVER:

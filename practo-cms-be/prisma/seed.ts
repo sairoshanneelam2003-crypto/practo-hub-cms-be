@@ -54,12 +54,12 @@ const seedUsers: SeedUser[] = [
     lastName: "Sharma",
     role: UserRole.SUPER_ADMIN
   },
-  // Medical Reviewer
+  // Medical Affairs
   {
-    email: "medical.reviewer@practo.com",
+    email: "medical.affairs@practo.com",
     firstName: "Medical",
-    lastName: "Reviewer",
-    role: UserRole.MEDICAL_REVIEWER
+    lastName: "Affairs",
+    role: UserRole.MEDICAL_AFFAIRS
   },
   // Brand Reviewer
   {
@@ -68,12 +68,12 @@ const seedUsers: SeedUser[] = [
     lastName: "Reviewer",
     role: UserRole.BRAND_REVIEWER
   },
-  // Doctor Creator
+  // Doctor
   {
     email: "doctor@practo.com",
     firstName: "Dr. Ramesh",
     lastName: "Kumar",
-    role: UserRole.DOCTOR_CREATOR,
+    role: UserRole.DOCTOR,
     specialty: "Cardiology",
     city: "Mumbai"
   },
@@ -82,7 +82,7 @@ const seedUsers: SeedUser[] = [
     email: "doctor2@practo.com",
     firstName: "Dr. Priya",
     lastName: "Sharma",
-    role: UserRole.DOCTOR_CREATOR,
+    role: UserRole.DOCTOR,
     specialty: "Endocrinology",
     city: "Delhi"
   },
@@ -107,13 +107,6 @@ const seedUsers: SeedUser[] = [
     lastName: "Publisher",
     role: UserRole.PUBLISHER
   },
-  // Viewer
-  {
-    email: "viewer@practo.com",
-    firstName: "Content",
-    lastName: "Viewer",
-    role: UserRole.VIEWER
-  }
 ];
 
 async function main() {

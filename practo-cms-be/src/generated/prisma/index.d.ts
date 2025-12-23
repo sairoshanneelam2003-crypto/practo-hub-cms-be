@@ -75,13 +75,12 @@ export type VideoAnalytics = $Result.DefaultSelection<Prisma.$VideoAnalyticsPayl
 export namespace $Enums {
   export const UserRole: {
   SUPER_ADMIN: 'SUPER_ADMIN',
-  MEDICAL_REVIEWER: 'MEDICAL_REVIEWER',
+  MEDICAL_AFFAIRS: 'MEDICAL_AFFAIRS',
   BRAND_REVIEWER: 'BRAND_REVIEWER',
-  DOCTOR_CREATOR: 'DOCTOR_CREATOR',
+  DOCTOR: 'DOCTOR',
   AGENCY_POC: 'AGENCY_POC',
   CONTENT_APPROVER: 'CONTENT_APPROVER',
-  PUBLISHER: 'PUBLISHER',
-  VIEWER: 'VIEWER'
+  PUBLISHER: 'PUBLISHER'
 };
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole]

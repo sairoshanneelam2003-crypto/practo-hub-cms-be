@@ -40,7 +40,7 @@ export interface TopicFilters {
  * Create a new topic
  */
 export async function createTopic(input: CreateTopicInput) {
-  // Verify assigned doctor exists and has DOCTOR_CREATOR role
+  // Verify assigned doctor exists and has DOCTOR role
   const doctor = await prisma.user.findUnique({
     where: { id: input.assignedDoctorId }
   });
@@ -49,8 +49,8 @@ export async function createTopic(input: CreateTopicInput) {
     throw new Error('Assigned doctor not found');
   }
 
-  if (doctor.role !== UserRole.DOCTOR_CREATOR) {
-    throw new Error('Assigned user must be a Doctor Creator');
+  if (doctor.role !== UserRole.DOCTOR) {
+    throw new Error('Assigned user must be a Doctor');
   }
 
   const topic = await prisma.topic.create({
@@ -275,8 +275,8 @@ export async function updateTopic(topicId: string, input: UpdateTopicInput) {
       throw new Error('Assigned doctor not found');
     }
 
-    if (doctor.role !== UserRole.DOCTOR_CREATOR) {
-      throw new Error('Assigned user must be a Doctor Creator');
+    if (doctor.role !== UserRole.DOCTOR) {
+      throw new Error('Assigned user must be a Doctor');
     }
   }
 

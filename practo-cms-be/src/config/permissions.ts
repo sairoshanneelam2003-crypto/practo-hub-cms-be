@@ -112,7 +112,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view_approval_chain'
   ],
 
-  MEDICAL_REVIEWER: [
+  MEDICAL_AFFAIRS: [
     'create_topic',
     'assign_topic',
     'view_all_topics',
@@ -143,7 +143,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view_content'
   ],
 
-  DOCTOR_CREATOR: [
+  DOCTOR: [
     'upload_pointers',
     'approve_script',
     'reject_script',
@@ -181,11 +181,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view_content'
   ],
 
-  VIEWER: [
-    'view_content',
-    'comment'
-  ],
-
   PUBLISHER: [
     'view_all_topics',
     'publish_content',
@@ -205,9 +200,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
  */
 export const SCRIPT_STAGE_REVIEWERS: Record<ScriptStatus, UserRole[]> = {
   [ScriptStatus.DRAFT]: [UserRole.AGENCY_POC],
-  [ScriptStatus.MEDICAL_REVIEW]: [UserRole.MEDICAL_REVIEWER, UserRole.SUPER_ADMIN],
+  [ScriptStatus.MEDICAL_REVIEW]: [UserRole.MEDICAL_AFFAIRS, UserRole.SUPER_ADMIN],
   [ScriptStatus.BRAND_REVIEW]: [UserRole.BRAND_REVIEWER, UserRole.SUPER_ADMIN],
-  [ScriptStatus.DOCTOR_REVIEW]: [UserRole.DOCTOR_CREATOR, UserRole.SUPER_ADMIN],
+  [ScriptStatus.DOCTOR_REVIEW]: [UserRole.DOCTOR, UserRole.SUPER_ADMIN],
   [ScriptStatus.APPROVED]: [UserRole.CONTENT_APPROVER, UserRole.SUPER_ADMIN], // Waiting for lock
   [ScriptStatus.LOCKED]: [UserRole.SUPER_ADMIN], // Only super admin can unlock
   [ScriptStatus.REJECTED]: [UserRole.AGENCY_POC]
@@ -216,8 +211,8 @@ export const SCRIPT_STAGE_REVIEWERS: Record<ScriptStatus, UserRole[]> = {
 export const VIDEO_STAGE_REVIEWERS: Record<VideoStatus, UserRole[]> = {
   [VideoStatus.DRAFT]: [UserRole.AGENCY_POC],
   [VideoStatus.BRAND_REVIEW]: [UserRole.BRAND_REVIEWER, UserRole.SUPER_ADMIN],
-  [VideoStatus.MEDICAL_REVIEW]: [UserRole.MEDICAL_REVIEWER, UserRole.SUPER_ADMIN],
-  [VideoStatus.DOCTOR_REVIEW]: [UserRole.DOCTOR_CREATOR, UserRole.SUPER_ADMIN],
+  [VideoStatus.MEDICAL_REVIEW]: [UserRole.MEDICAL_AFFAIRS, UserRole.SUPER_ADMIN],
+  [VideoStatus.DOCTOR_REVIEW]: [UserRole.DOCTOR, UserRole.SUPER_ADMIN],
   [VideoStatus.APPROVED]: [UserRole.CONTENT_APPROVER, UserRole.SUPER_ADMIN], // Waiting for lock
   [VideoStatus.LOCKED]: [UserRole.PUBLISHER, UserRole.SUPER_ADMIN],
   [VideoStatus.PUBLISHED]: [UserRole.SUPER_ADMIN],

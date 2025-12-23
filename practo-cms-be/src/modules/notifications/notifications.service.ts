@@ -178,7 +178,7 @@ export class NotificationService {
 
       const reviewers = await prisma.user.findMany({
         where: {
-          role: UserRole.MEDICAL_REVIEWER,
+          role: UserRole.MEDICAL_AFFAIRS,
           status: UserStatus.ACTIVE,
         },
         select: { id: true, firstName: true, lastName: true },

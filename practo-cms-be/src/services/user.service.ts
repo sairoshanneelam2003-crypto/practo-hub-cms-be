@@ -239,7 +239,7 @@ export async function getAllUsers(
  */
 export async function getDoctors() {
   const where = {
-    role: UserRole.DOCTOR_CREATOR,
+    role: UserRole.DOCTOR,
     status: UserStatus.ACTIVE
   };
 
